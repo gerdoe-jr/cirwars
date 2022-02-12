@@ -1,7 +1,7 @@
 import socket
 
-from shared.network import BaseNetwork, SocketPacketList
-from shared.protocol import BasePacket
+from shared.network import BaseNetwork
+from shared.protocol import BasePacket, SocketPacketList
 from shared.globals import *
 
 

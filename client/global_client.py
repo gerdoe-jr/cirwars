@@ -1,12 +1,10 @@
-from client.network import *
 from client.renderer import *
+from client.network import *
 
 
 class GameClient:
     def __init__(self):
-        self.net_client = None
-
-        self.run()
+        self.net_client = NetworkClient()
 
     def run(self):
         running = True
@@ -16,7 +14,7 @@ class GameClient:
 
         size = 800, 600
         screen = pygame.display.set_mode(size)
-        pygame.display.set_caption('cirwars [v1]')
+        pygame.display.set_caption('cirwars')
 
         scene_controller = SceneController(screen)
         scene_controller.current_scene = LoadingScene(scene_controller)
@@ -39,5 +37,4 @@ class GameClient:
             clock.tick(TICK_SPEED)
 
 
-if __name__ == '__main__':
-    client = GameClient()
+game_client = GameClient()

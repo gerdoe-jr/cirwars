@@ -1,28 +1,6 @@
 import socket
 
-from threading import Thread, Lock
-
-
-class SocketPacketList:
-    def __init__(self, capacity: int = 0):
-        self.capacity = capacity
-        self.lock = Lock()
-        self.packets = []
-
-    def __len__(self):
-        with self.lock:
-            return len(self.packets)
-
-    def pop(self):
-        with self.lock:
-            return self.packets.pop(0) if len(self) > 0 else None
-
-    def push(self, packet: (bytes, (str, int))):
-        with self.lock:
-            if self.capacity and len(self.packets) == self.capacity:
-                self.packets.pop(0)
-
-            self.packets.append(packet)
+from threading import Thread
 
 
 class BaseNetwork:

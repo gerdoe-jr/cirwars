@@ -1,51 +1,101 @@
 import struct
+from threading import Lock
 
 
-# only trusted strings go here
-def class_by_name(name):
-    return eval(name)
+def struct_type_of(value, max_len=0):
+    print(f'value is {value}, {type(value)}')
+    if type(value) is int:
+        return 'l'
+    elif type(value) is float:
+        return 'f'
+    elif type(value) is str:
+        return ''
 
 
 class BasePacket:
+    def __init__(self, *attrs):
+        str_format = ''
+
+        for attr in attrs:
+            self.__setattr__(attr[0], attr[1])
+            str_format += struct_type_of(attr[1])
+
+        if not getattr(self, "str_format", 0):
+            self.__class__.str_format = str_format
+
     def format(self):
-        pass
+        return self.__class__.str_format
 
     def packet_type(self):
-        PACKET_TYPES.index(type(self).__name__)
+        return PACKET_TYPES.index(type(self).__name__)
 
     def serialize(self):
-        pass
+        eval_str = f'struct.pack("!i" + self.format(), self.packet_type(), self.{", self.".join(self.__dict__.keys())})'
+        print(eval_str)
+        return \
+            eval(eval_str)
 
     def inner_deserialize(self, info):
-        pass
+        for i in range(len(self.__dict__)):
+            self.__setattr__(list(self.__dict__.keys())[i], info[i])
 
     @staticmethod
     def deserialize(bin_info):
-        (packet_type,) = struct.unpack("!q", bin_info[0:5])
+        (packet_type,) = struct.unpack("!i", bin_info[:4])
 
-        packet = class_by_name(PACKET_TYPES[packet_type])()
+        packet = eval(PACKET_TYPES[packet_type])()
 
-        others = struct.unpack("!" + packet.format(), bin_info[5:])
-        return packet.inner_deserialize(others)
+        print(packet.format())
+        print(len(bin_info[4:]), len(bin_info))
+
+        others = struct.unpack("!" + packet.format(), bin_info[4:])
+
+        packet.inner_deserialize(others)
+
+        return packet
+
+
+class SocketPacketList:
+    def __init__(self, capacity: int = 0):
+        self.capacity = capacity
+        self.lock = Lock()
+        self.packets = []
+
+    def __len__(self):
+        with self.lock:
+            return len(self.packets)
+
+    def pop(self):
+        with self.lock:
+            return self.packets.pop(0) if len(self) > 0 else None
+
+    def push(self, packet: (bytes, (str, int))):
+        with self.lock:
+            if self.capacity and len(self.packets) == self.capacity:
+                self.packets.pop(0)
+
+            self.packets.append(packet)
+
+    def serialize(self):
+        with self.lock:
+            result = bytearray(struct.pack("!i", len(self.packets)))
+
+            for packet in self.packets:
+                result.extend(packet.serialize())
+
+        return result
+
+    def deserialize(self, packet):
+        return
 
 
 # server packets
 class PlayerEntityInfo(BasePacket):
     def __init__(self):
-        self.x = 0
-        self.y = 0
-
-    def serialize(self):
-        return struct.pack("!3q",
-                           self.packet_type(),
-                           self.x,
-                           self.y)
-
-    def inner_deserialize(self, info):
-        (
-            self.x,
-            self.y,
-        ) = info
+        super().__init__(
+            ('x', 0.0),
+            ('y', 0.0)
+        )
 
 
 # client packets
@@ -56,8 +106,11 @@ class PlayerInputInfo(BasePacket):
 
         self.keys = 0
 
+    def format(self):
+        return "4q"
+
     def serialize(self):
-        return struct.pack("!4q",
+        return struct.pack(self.format(),
                            self.packet_type(),
                            self.cur_x,
                            self.cur_y,
