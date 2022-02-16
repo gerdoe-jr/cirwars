@@ -1,4 +1,5 @@
 from client.ui import *
+from .global_client import game_client
 
 
 class LoadingScene(Scene):
@@ -38,7 +39,7 @@ class MainMenu(Scene):
 
     def render(self):
         self.screen.fill((0, 0, 0))
-        # background
+
         r = 20
         const = 30 + r
         w, h = self.screen.get_size()
@@ -65,13 +66,19 @@ class MainMenu(Scene):
 class ConnectMenu(Scene):
     class OkButton(Button):
         def action(self):
-            pass
+            game_client.net_client.connect(self.scene.components[1])
+
+    class NickLabel(WritableLabel):
+        pass
+
+    class AddressLabel(WritableLabel):
+        pass
 
     def on_init(self):
         w, h = self.screen.get_size()
 
         self.components = [
-            WritableLabel(self, w // 2, h // 2 - 150, 100, 50, out_text='name'),
-            WritableLabel(self, w // 2, h // 2 - 50, 100, 50, out_text='addr', allowed=list('0123456789.')),
+            self.NickLabel(self, w // 2, h // 2 - 150, 100, 50, out_text='name'),
+            self.AddressLabel(self, w // 2, h // 2 - 50, 100, 50, out_text='addr', allowed=list('0123456789.')),
             self.OkButton(self, w // 2 - 50, h // 2 + 50, 100, 50, text='ok')
         ]

@@ -35,6 +35,9 @@ class SceneController:
             self.screen.blit(self.black_screen_surface, (0, 0, self.screen.get_width(), self.screen.get_height()))
             self.next_scene_timeout -= 1
 
+    def on_event(self, event):
+        self.current_scene.on_event(event)
+
 
 class Scene(Component):
     def __init__(self, scene_controller):

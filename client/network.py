@@ -32,5 +32,3 @@ class NetworkClient(BaseNetwork):
                 elif packet:
                     self.received_packets.push(packet)
             self.socket.close()
-
-            self.server.on_client_disconnect(self)

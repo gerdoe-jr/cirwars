@@ -2,23 +2,13 @@ import struct
 from threading import Lock
 
 
-def struct_type_of(value, max_len=0):
-    print(f'value is {value}, {type(value)}')
-    if type(value) is int:
-        return 'l'
-    elif type(value) is float:
-        return 'f'
-    elif type(value) is str:
-        return ''
-
-
 class BasePacket:
     def __init__(self, *attrs):
         str_format = ''
 
         for attr in attrs:
-            self.__setattr__(attr[0], attr[1])
-            str_format += struct_type_of(attr[1])
+            self.__setattr__(attr[0], attr[2])
+            str_format += attr[1]
 
         if not getattr(self, "str_format", 0):
             self.__class__.str_format = str_format
@@ -93,35 +83,19 @@ class SocketPacketList:
 class PlayerEntityInfo(BasePacket):
     def __init__(self):
         super().__init__(
-            ('x', 0.0),
-            ('y', 0.0)
+            ('x', 'f', 0.0),
+            ('y', 'f', 0.0)
         )
 
 
 # client packets
 class PlayerInputInfo(BasePacket):
     def __init__(self):
-        self.cur_x = 0
-        self.cur_y = 0
-
-        self.keys = 0
-
-    def format(self):
-        return "4q"
-
-    def serialize(self):
-        return struct.pack(self.format(),
-                           self.packet_type(),
-                           self.cur_x,
-                           self.cur_y,
-                           self.keys)
-
-    def inner_deserialize(self, info):
-        (
-            self.cur_x,
-            self.cur_y,
-            self.keys
-        ) = info
+        super().__init__(
+            ('cursor_x', 'f', 0.0),
+            ('cursor_y', 'f', 0.0),
+            ('keys', 'i', 0)
+        )
 
 
 PACKET_TYPES = list(

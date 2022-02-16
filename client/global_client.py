@@ -27,7 +27,7 @@ class GameClient:
                 if event.type == pygame.QUIT:
                     running = False
                 else:
-                    scene_controller.current_scene.on_event(event)
+                    scene_controller.on_event(event)
 
             if pygame.key.get_focused():
                 scene_controller.current_scene.render()

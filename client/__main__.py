@@ -5,6 +5,7 @@ if __name__ == '__main__':
     # game_client.run()
 
     playerinfo = PlayerEntityInfo()
+    print(BasePacket.deserialize(PlayerInputInfo().serialize()).__dict__)
     print(playerinfo.__dict__)
     print(playerinfo.format())
     print(playerinfo.serialize())
