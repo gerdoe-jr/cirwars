@@ -11,5 +11,8 @@ class Component:
     def render(self):
         pass
 
+    def on_tick(self):
+        pass
+
     def on_event(self, event):
         pass

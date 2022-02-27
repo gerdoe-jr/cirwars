@@ -1,13 +1,14 @@
-from .global_client import game_client
-from .network import *
+import pygame
+
+from client.core.client import Client
+
+
+def init_pygame():
+    pygame.init()
+    pygame.font.init()
+
 
 if __name__ == '__main__':
-    # game_client.run()
+    init_pygame()
 
-    playerinfo = PlayerEntityInfo()
-    print(BasePacket.deserialize(PlayerInputInfo().serialize()).__dict__)
-    print(playerinfo.__dict__)
-    print(playerinfo.format())
-    print(playerinfo.serialize())
-    print(BasePacket.deserialize(playerinfo.serialize()))
-    print(PlayerEntityInfo().__dict__)
+    Client().run()

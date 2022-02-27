@@ -8,8 +8,8 @@ class Collision:
         self.context = context
         self.tiles = {}
 
-        for i in range(game_map):
-            for j in range(game_map[i]):
+        for i in range(len(game_map)):
+            for j in range(len(game_map[i])):
                 if game_map[i][j] > 0:
                     self.tiles[(j, i)] = game_map[i][j]
 

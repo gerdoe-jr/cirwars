@@ -10,7 +10,7 @@ class BasePacket:
             self.__setattr__(attr[0], attr[2])
             str_format += attr[1]
 
-        if not getattr(self, "str_format", 0):
+        if not getattr(self, "str_format", 0):  # never initialize parent class object
             self.__class__.str_format = str_format
 
     def format(self):
@@ -20,6 +20,9 @@ class BasePacket:
         return PACKET_TYPES.index(type(self).__name__)
 
     def serialize(self):
+        for e in self.__dict__.keys():
+            if isinstance(self.__getattribute__(e), str):
+                self.__setattr__(e, str.encode(self.__getattribute__(e)))
         eval_str = f'struct.pack("!i" + self.format(), self.packet_type(), self.{", self.".join(self.__dict__.keys())})'
         print(eval_str)
         return \
@@ -35,10 +38,11 @@ class BasePacket:
 
         packet = eval(PACKET_TYPES[packet_type])()
 
-        print(packet.format())
-        print(len(bin_info[4:]), len(bin_info))
+        bin_info = bin_info[4:4 + struct.calcsize(packet.format()) + 1]
 
-        others = struct.unpack("!" + packet.format(), bin_info[4:])
+        print(packet.format())
+
+        others = struct.unpack("!" + packet.format(), bin_info)
 
         packet.inner_deserialize(others)
 
@@ -46,8 +50,7 @@ class BasePacket:
 
 
 class SocketPacketList:
-    def __init__(self, capacity: int = 0):
-        self.capacity = capacity
+    def __init__(self):
         self.lock = Lock()
         self.packets = []
 
@@ -57,26 +60,34 @@ class SocketPacketList:
 
     def pop(self):
         with self.lock:
-            return self.packets.pop(0) if len(self) > 0 else None
+            return self.packets.pop(0) if len(self.packets) else None
 
-    def push(self, packet: (bytes, (str, int))):
+    def push(self, packet):
         with self.lock:
-            if self.capacity and len(self.packets) == self.capacity:
-                self.packets.pop(0)
-
             self.packets.append(packet)
+
+    def extend(self, packets):
+        with self.lock:
+            self.packets.extend(packets)
 
     def serialize(self):
         with self.lock:
             result = bytearray(struct.pack("!i", len(self.packets)))
 
-            for packet in self.packets:
-                result.extend(packet.serialize())
+            for _ in range(len(self.packets)):
+                result.extend(self.packets.pop(0).serialize())
 
         return result
 
-    def deserialize(self, packet):
-        return
+    def deserialize(self, raw_packet):
+        with self.lock:
+            (length,) = struct.unpack("!i", raw_packet[:4])
+            raw_packet = raw_packet[4:]
+            for _ in range(length):
+                packet = BasePacket.deserialize(raw_packet)
+                self.packets.append(packet)
+
+                raw_packet = raw_packet[struct.calcsize(packet.format()) :]
 
 
 # server packets
@@ -88,7 +99,17 @@ class PlayerEntityInfo(BasePacket):
         )
 
 
+# ####
+
+
 # client packets
+class ClientInfo(BasePacket):
+    def __init__(self):
+        super().__init__(
+            ('nick', '8s', '')
+        )
+
+
 class PlayerInputInfo(BasePacket):
     def __init__(self):
         super().__init__(
@@ -103,6 +124,7 @@ PACKET_TYPES = list(
         [
             PlayerEntityInfo,
 
+            ClientInfo,
             PlayerInputInfo,
         ])
 )

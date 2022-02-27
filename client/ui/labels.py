@@ -43,49 +43,50 @@ class WritableLabel(Label):
         self.on_init()
 
     def on_event(self, event):
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            if self.x + self.w >= event.pos[0] >= self.x and \
-                    self.y + self.h >= event.pos[1] >= self.y:
-                self.texting = True
-            else:
-                self.texting = False
-        elif event.type == pygame.KEYDOWN:
+        if event.type == pygame.MOUSEBUTTONUP:
+            self.texting = self.x + self.w >= event.pos[0] >= self.x and \
+                    self.y + self.h >= event.pos[1] >= self.y
+
+        if event.type == pygame.KEYDOWN and self.texting:
+            print('::keydown')
             if event.key != pygame.K_BACKSPACE:
-                key = 0
+                key = None
                 try:
-                    key = ord(char(event.key).lower())
-                except ValueError:
-                    pass
-                if key and key in self.allowed_symbols:
+                    key = ord(chr(event.key).lower())
+                except ValueError as e:
+                    print(e)
+                if key and chr(key) in self.allowed_symbols:
                     self.holding_key = key
             else:
                 self.holding_key = pygame.K_BACKSPACE
-        elif event.type == pygame.KEYUP:
+
+        if event.type == pygame.KEYUP and self.holding_key == event.key and self.texting:
             self.holding_key = 0
 
-        if self.holding_key:
-            if self.holding_key != pygame.K_BACKSPACE and self.max_len and len(self.text) < self.max_len:
-                self.text += self.holding_key
-            elif self.holding_key == pygame.K_BACKSPACE and not len(self.text):
-                self.text = self.text[:-1]
+        if self.holding_key and self.holding_key != pygame.K_BACKSPACE\
+                and (not self.max_len or len(self.text) < self.max_len) and event.type == pygame.TEXTINPUT:
+            self.text += chr(self.holding_key)
+
+        if self.holding_key == pygame.K_BACKSPACE:
+            self.text = self.text[:-1]
 
     def render(self):
         def sub_render_text(text, color):
             font = self.font.render(text, True, color)
             w, h = font.get_size()
-            real_w = w - 30 if w - 30 >= self.w else self.w
-            real_x = -15 if w - 30 >= self.w else (self.w - w) // 2
+            real_w = w - 20 if w - 20 >= self.w else self.w
+            real_x = -10 if w - 20 >= self.w else (self.w - w) // 2
             font_surf = pygame.Surface((real_w, self.h))
             font_surf.fill((255, 255, 255))
             font_surf.blit(font, (real_x, -h * 0.1))
             self.screen.blit(font_surf, (self.x - real_w // 2, self.y))
 
         if len(self.text):
-            sub_render_text(self.text, (0, 0, 0))
+            sub_render_text(self.text, (0, 0, 0) if not self.texting else (200, 200, 200))
         elif len(self.out_text):
             sub_render_text(self.out_text, (200, 200, 200))
         else:
-            pygame.draw.rect(self.screen, (255, 255, 255), (self.x + self.w // 2, self.y, self.w, self.h))
+            pygame.draw.rect(self.screen, (255, 255, 255) if not self.texting else (0, 0, 0), (self.x + self.w // 2, self.y, self.w, self.h))
 
     def content(self):
         return self.text

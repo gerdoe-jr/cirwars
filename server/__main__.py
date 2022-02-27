@@ -1,5 +1,5 @@
 from os import path, listdir
-from pygame import time
+from pygame.time import Clock
 
 from server.network import NetworkServer
 from server.game_logic import GameWorld, Collision
@@ -14,13 +14,14 @@ class GameServer:
 
     def __init__(self):
         self.current_tick = 0
-        self.net_server = None
+        self.net_server = NetworkServer()
         self.context = None
 
-        self.run()
-
     def tick(self):
-        pass
+        if self.context.world:
+            self.context.world.tick()
+
+        self.current_tick += 1
 
     def run(self):
         game_map = self.load_map()
@@ -33,21 +34,24 @@ class GameServer:
         for l in game_map:
             print(l)
 
-        self.net_server = NetworkServer()
         self.context = self.Context()
 
         self.context.world = GameWorld(self.context)
         self.context.collision = Collision(self.context, game_map)
 
-        clock = time.Clock()
+        self.net_server.start()
+
+        clock = Clock()
 
         while True:
             self.tick()
+
             clock.tick(TICK_SPEED)
 
     def load_map(self):
-        for file in filter(lambda x: path.isfile(x), listdir()):
-            if file.lower().endswith('.tmap'):
+        for file in filter(lambda x: print(x) or path.isfile('./data/maps/' + x), listdir('./data/maps/')):
+            file = './data/maps/' + file
+            if file.lower().rstrip().endswith('.tmap'):
                 o_file = open(file, 'r')
                 data = o_file.readlines()
                 o_file.close()

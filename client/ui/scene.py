@@ -3,7 +3,7 @@ from shared.globals import TICK_SPEED
 
 
 class SceneController:
-    DEFAULT_TIMEOUT = TICK_SPEED * 0.5
+    DEFAULT_TIMEOUT = TICK_SPEED * 0.6
 
     def __init__(self, screen):
         self.screen = screen
@@ -14,19 +14,23 @@ class SceneController:
         self.next_scene_timeout = self.DEFAULT_TIMEOUT
 
     def on_tick(self):
-        if self.current_scene:
-            self.current_scene.render()
+        self.current_scene.on_tick()
 
-        if self.next_scene and self.next_scene_timeout == 0:
-            print('next_scene')
-            self.previous_scene = self.current_scene
-            self.current_scene = self.next_scene
-            self.next_scene = None
+    def on_event(self, event):
+        self.current_scene.on_event(event)
 
-            self.next_scene_timeout -= 1
+    def render(self):
+        self.current_scene.render()
 
-        if self.next_scene and self.next_scene_timeout < -self.DEFAULT_TIMEOUT:
-            self.next_scene_timeout = self.DEFAULT_TIMEOUT
+        if self.next_scene:
+            if self.next_scene_timeout == 0:
+                self.previous_scene = self.current_scene
+                self.current_scene = self.next_scene
+                self.next_scene = None
+
+                self.next_scene_timeout -= 1
+            elif self.next_scene_timeout < -self.DEFAULT_TIMEOUT:
+                self.next_scene_timeout = self.DEFAULT_TIMEOUT
 
         if self.next_scene_timeout >= -self.DEFAULT_TIMEOUT:
             pygame.draw.rect(self.black_screen_surface,
@@ -34,9 +38,6 @@ class SceneController:
                              (0, 0, self.screen.get_width(), self.screen.get_height()))
             self.screen.blit(self.black_screen_surface, (0, 0, self.screen.get_width(), self.screen.get_height()))
             self.next_scene_timeout -= 1
-
-    def on_event(self, event):
-        self.current_scene.on_event(event)
 
 
 class Scene(Component):
@@ -58,6 +59,10 @@ class Scene(Component):
         self.render_before_components()
         self.render_components()
         self.render_after_components()
+
+    def on_tick(self):
+        for c in self.components:
+            c.on_tick()
 
     def render_before_components(self):
         pass
