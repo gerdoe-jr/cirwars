@@ -2,6 +2,8 @@ import math
 
 
 class Vector:
+    __slots__ = 'x', 'y'
+
     def __init__(self, x, y):
         self.x = x
         self.y = y
@@ -20,7 +22,7 @@ class Vector:
 
     def __mul__(self, other):
         if isinstance(other, Vector):
-            return self.length() * other.length() * math.cos(self.angle(other))
+            return length(self) * length(other) * math.cos(angle(self, other))
         elif isinstance(other, (int, float)):
             return Vector(self.x * other, self.y * other)
         else:
@@ -64,4 +66,4 @@ def length(vec):
 
 
 def mix(first, second, interpolate):
-    return (1 - interpolate) * first + second * interpolate
+    return first * (1 - interpolate) + second * interpolate

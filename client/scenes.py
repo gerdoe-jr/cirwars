@@ -1,13 +1,12 @@
 from client.ui import *
-from client.core.event_handler import Events, EventReceiver, event_handler_instance
-
-from client.core.game import GameClient
+from shared.event_handler import ClientEvents, EventReceiver, event_handler_instance
 
 
 class LoadingScene(Scene):
     def render(self):
         w, h = self.screen.get_size()
-        self.screen.blit(pygame.font.Font('./data/fonts/font.ttf', 24).render('(c) gerdoe', True, (255, 255, 255)), (w - 140, h - 40))
+        draw_text((w - 140, h - 40), (255, 255, 255), '(c) gerdoe', 24)
+        # self.screen.blit(pygame.font.Font('./data/fonts/font.ttf', 24).render('(c) gerdoe', True, (255, 255, 255)), (w - 140, h - 40))
 
 
 class MainMenu(Scene):
@@ -58,26 +57,47 @@ class MainMenu(Scene):
                 if -r < x < w + r:
                     c_x = int((r + (x if j % 2 else w - x)) / (w + 2 * r) * 150)
 
-                pygame.draw.circle(self.screen, (c_x, c_x, c_x), (x, y), r)
+                draw_circle((x, y), r, (c_x, c_x, c_x))
+                # pygame.draw.circle(self.screen, (c_x, c_x, c_x), (x, y), r)
 
 
 class ConnectMenu(Scene):
     class OkButton(Button):
         trying_to_connect = False
         timeout = TICK_SPEED * 10
+        count = 0
         connected = False
+
+        def reset(self):
+            self.trying_to_connect = False
+            self.connected = False
+            self.count = 0
 
         def action(self):
             server_address = (self.scene.components[1].content(), 0)
             nick = self.scene.components[0].content()
-            nick = nick if len(nick) < 9 else nick[:9]
-            event_handler_instance.send(EventReceiver.NETWORK, Events.Network.TRY_CONNECT, nick, server_address)
+            nick = nick if len(nick) < 9 else nick[:8]
+            event_handler_instance.send(EventReceiver.NETWORK, ClientEvents.Network.TRY_CONNECT, nick, server_address)
+            self.trying_to_connect = True
 
         def on_tick(self):
             if self.connected:
                 self.scene.scene_controller.next_scene = GameScene(self.scene.scene_controller)
+                self.reset()
             elif self.trying_to_connect:
-                event_handler_instance.recv(EventReceiver.INTERACTION)
+                event = event_handler_instance.recv(EventReceiver.INTERACTION)
+
+                if event:
+                    print('received interaction.net_connected')
+                    self.reset()
+                    self.connected = True
+                    return
+
+                self.count += 1
+
+                if self.count >= self.timeout:
+                    self.reset()
+                    self.scene.scene_controller.next_scene = self.scene.scene_controller.previous_scene
 
     class NickLabel(WritableLabel):
         pass
@@ -97,4 +117,15 @@ class ConnectMenu(Scene):
 
 class GameScene(Scene):
     def on_init(self):
-        event_handler_instance.send(EventReceiver.GAME, )
+        event_handler_instance.send(EventReceiver.GAME, ClientEvents.Game.START)
+
+    def on_tick(self):
+        event = event_handler_instance.recv(EventReceiver.INTERACTION)
+
+        if event:
+            if event[0] == ClientEvents.Interaction.NET_DISCONNECTED:
+                event_handler_instance.send(EventReceiver.GAME, ClientEvents.Game.STOP)
+                self.scene_controller.next_scene = self.scene_controller.previous_scene
+
+    def render(self):
+        p = 0

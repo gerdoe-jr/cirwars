@@ -1,30 +1,47 @@
 import struct
 from threading import Lock
 
+PACKET_TYPES = []
+
+
+def new_packet(name, *attributes):
+    PACKET_TYPES.append(name)
+    index = len(PACKET_TYPES) - 1
+
+    init_attrs = ", ".join([f'{a[0]}=' + (f'{a[2]}' if not isinstance(a[2], str) else f"'{a[2]}'") for a in attributes])
+
+    compile_str = f'''def i_func(ins, {init_attrs}):
+    {" ; ".join([f"ins.{a[0]} = {a[0]}" for a in attributes])}'''
+
+    exec(compile(compile_str, '', 'exec'))
+
+    type_dict = {a[0]: a[2] for a in attributes}
+
+    type_dict['init'] = eval('i_func')
+    type_dict['packet_type'] = lambda self: index
+    type_dict['str_format'] = ''.join(map(lambda a: a[1], attributes))
+
+    return type(name, (BasePacket,), type_dict)
+
 
 class BasePacket:
-    def __init__(self, *attrs):
-        str_format = ''
+    attributes = []
+    str_format = ''
 
-        for attr in attrs:
-            self.__setattr__(attr[0], attr[2])
-            str_format += attr[1]
-
-        if not getattr(self, "str_format", 0):  # never initialize parent class object
-            self.__class__.str_format = str_format
+    def __init__(self, *args, **kwargs):
+        type(self).init(self, *args, **kwargs)
 
     def format(self):
-        return self.__class__.str_format
+        return type(self).str_format
 
     def packet_type(self):
-        return PACKET_TYPES.index(type(self).__name__)
+        pass
 
     def serialize(self):
         for e in self.__dict__.keys():
             if isinstance(self.__getattribute__(e), str):
                 self.__setattr__(e, str.encode(self.__getattribute__(e)))
         eval_str = f'struct.pack("!i" + self.format(), self.packet_type(), self.{", self.".join(self.__dict__.keys())})'
-        print(eval_str)
         return \
             eval(eval_str)
 
@@ -38,10 +55,7 @@ class BasePacket:
 
         packet = eval(PACKET_TYPES[packet_type])()
 
-        bin_info = bin_info[4:4 + struct.calcsize(packet.format()) + 1]
-
-        print(packet.format())
-
+        bin_info = bin_info[4:4 + struct.calcsize(packet.format())]
         others = struct.unpack("!" + packet.format(), bin_info)
 
         packet.inner_deserialize(others)
@@ -61,6 +75,12 @@ class SocketPacketList:
     def pop(self):
         with self.lock:
             return self.packets.pop(0) if len(self.packets) else None
+
+    def flush(self):
+        with self.lock:
+            packets = self.packets[:]
+            self.packets.clear()
+        return packets
 
     def push(self, packet):
         with self.lock:
@@ -87,44 +107,40 @@ class SocketPacketList:
                 packet = BasePacket.deserialize(raw_packet)
                 self.packets.append(packet)
 
-                raw_packet = raw_packet[struct.calcsize(packet.format()) :]
+                raw_packet = raw_packet[4 + struct.calcsize(packet.format()):]
 
 
 # server packets
-class PlayerEntityInfo(BasePacket):
-    def __init__(self):
-        super().__init__(
-            ('x', 'f', 0.0),
-            ('y', 'f', 0.0)
-        )
+PlayerEntityInfo = new_packet('PlayerEntityInfo',
+                              ('client_id', 'i', 0),
+                              ('x', 'f', 0.0),
+                              ('y', 'f', 0.0)
+                              )
 
+ServerInfo = new_packet('ServerInfo',
+                        ('map_name', '64s', ''),
+                        ('player_amount', 'i', 0),
+                        ('client_id', 'i', 0)
+                        )
+
+PlayerSpawnInfo = new_packet('PlayerSpawnInfo',
+                             ('client_id', 'i', 0)
+                             )
+
+PlayerDeathInfo = new_packet('PlayerDeathInfo',
+                             ('client_id', 'i', 0)
+                             )
 
 # ####
 
 
 # client packets
-class ClientInfo(BasePacket):
-    def __init__(self):
-        super().__init__(
-            ('nick', '8s', '')
-        )
+ClientInfo = new_packet('ClientInfo',
+                        ('nick', '8s', 'noname')
+                        )
 
-
-class PlayerInputInfo(BasePacket):
-    def __init__(self):
-        super().__init__(
-            ('cursor_x', 'f', 0.0),
-            ('cursor_y', 'f', 0.0),
-            ('keys', 'i', 0)
-        )
-
-
-PACKET_TYPES = list(
-    map(lambda p: p.__name__,
-        [
-            PlayerEntityInfo,
-
-            ClientInfo,
-            PlayerInputInfo,
-        ])
-)
+ClientInputInfo = new_packet('ClientInputInfo',
+                             ('cursor_x', 'f', 0.0),
+                             ('cursor_y', 'f', 0.0),
+                             ('keys', 'i', 0)
+                             )

@@ -6,14 +6,16 @@ class EventReceiver:
     RECEIVER_NUM = 3
 
 
-class Events:
+class ClientEvents:
     class Game:
-        pass
+        START = 0
+        STOP = 1
+
+        NET_RECEIVED = 2
 
     class Interaction:
         NET_CONNECTED = 0
         NET_DISCONNECTED = 1
-
         NET_RECEIVED = 2
 
     class Network:

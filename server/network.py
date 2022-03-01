@@ -1,14 +1,14 @@
 from shared.network import BaseNetwork
-from shared.protocol import BasePacket, SocketPacketList
+from shared.protocol import *
 from shared.globals import *
 
 
 class ServerClient(BaseNetwork):
     def __init__(self, net_server, net_info: (str, int)):
         super().__init__(net_info, NET_BUF_SIZE)
+        self.socket.settimeout(1.0)
 
         self.server = net_server
-        self.socket.settimeout(1.0)
 
         self.scheduled_packets = SocketPacketList()
         self.received_packets = SocketPacketList()
@@ -22,17 +22,17 @@ class ServerClient(BaseNetwork):
     def main_thread(self):
         print('started client')
         while self.running:
-            if len(self.scheduled_packets):
+            if len(self.scheduled_packets.packets):
                 self.try_send(self.scheduled_packets.serialize(), self.net_info)
         self.socket.close()
         print('stopped client')
-
-        self.server.on_client_disconnect(self)
 
 
 class NetworkServer(BaseNetwork):
     def __init__(self, port: int = NET_SERVER_PORT):
         super().__init__(('0.0.0.0', port), NET_BUF_SIZE)
+
+        self.context = None
 
         self.clients = {}
         self.ip_id_dict = {}
@@ -54,17 +54,30 @@ class NetworkServer(BaseNetwork):
         self.clients[i] = ServerClient(self, address)
         self.clients[i].start()
 
+        self.clients[i].send_packets(ServerInfo(self.map_name, len(self.clients), i))
+
         self.ip_id_dict[address] = i
 
+        self.context.world.on_player_connect(i)
+
     def on_client_receive(self, address, packet):
-        self.clients[self.ip_id_dict[address]].received_packets.deserialize(packet)
+        client_id = self.ip_id_dict[address]
+        slist = self.clients[client_id].received_packets
+        slist.deserialize(packet)
+
+        for p in slist.packets:
+            if isinstance(p, ClientInputInfo):
+                self.context.world.on_player_input(client_id, p)
+
+        slist.packets.clear()
 
     def on_client_disconnect(self, client: ServerClient):
         address = client.net_info
-        self.clients.pop(self.ip_id_dict[address])
-        self.ip_id_dict.pop(address)
+        self.clients.pop(self.ip_id_dict[address]).stop()
 
         print(f"{client.net_info} disconnected")
+
+        self.context.world.on_player_disconnect(self.ip_id_dict.pop(address))
 
     def main_thread(self):
         try:
@@ -77,6 +90,9 @@ class NetworkServer(BaseNetwork):
             if packet is None:
                 continue
             elif address in self.ip_id_dict.keys():
-                self.on_client_receive(address, packet)
+                if packet == b'':
+                    self.on_client_disconnect(self.clients[self.ip_id_dict[address]])
+                else:
+                    self.on_client_receive(address, packet)
             else:
                 self.on_client_connect(address)

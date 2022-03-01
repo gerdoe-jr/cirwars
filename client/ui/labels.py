@@ -1,6 +1,8 @@
 from client.ui.component import *
 from shared.globals import TICK_SPEED
 
+from client.ui.opengl import *
+
 
 class Label(Component):
     def __init__(self, scene, x=0, y=0, w=0, h=0, text=''):
@@ -21,8 +23,10 @@ class Label(Component):
     def render(self):
         font = self.font.render(self.text, True, (0, 0, 0))
         w, h = font.get_size()
-        pygame.draw.rect(self.screen, (255, 255, 255), (self.x + (self.w - w) // 2, self.y + h // 5, w, self.h - h // 5))
-        self.screen.blit(font, (self.x + (self.w - w) // 2, self.y + self.h - h // 1.5))
+        draw_rect((self.x + (self.w - w) // 2, self.y + h // 5, w, self.h - h // 5), (255, 255, 255))
+        # pygame.draw.rect(self.screen, (255, 255, 255), (self.x + (self.w - w) // 2, self.y + h // 5, w, self.h - h // 5))
+        draw_text((self.x + (self.w - w) // 2, self.y + self.h - h // 1.5), (255, 0, 0), self.text)
+        # self.screen.blit(font, (self.x + (self.w - w) // 2, self.y + self.h - h // 1.5))
 
 
 class WritableLabel(Label):
@@ -71,22 +75,23 @@ class WritableLabel(Label):
             self.text = self.text[:-1]
 
     def render(self):
-        def sub_render_text(text, color):
-            font = self.font.render(text, True, color)
-            w, h = font.get_size()
-            real_w = w - 20 if w - 20 >= self.w else self.w
-            real_x = -10 if w - 20 >= self.w else (self.w - w) // 2
-            font_surf = pygame.Surface((real_w, self.h))
-            font_surf.fill((255, 255, 255))
-            font_surf.blit(font, (real_x, -h * 0.1))
-            self.screen.blit(font_surf, (self.x - real_w // 2, self.y))
+        # def sub_render_text(text, color):
+        #     font = self.font.render(text, True, color)
+        #     w, h = font.get_size()
+        #     real_w = w - 20 if w - 20 >= self.w else self.w
+        #     real_x = -10 if w - 20 >= self.w else (self.w - w) // 2
+        #     font_surf = pygame.Surface((real_w, self.h))
+        #     font_surf.fill((255, 255, 255))
+        #     font_surf.blit(font, (real_x, -h * 0.1))
+        #     self.screen.blit(font_surf, (self.x - real_w // 2, self.y))
 
         if len(self.text):
-            sub_render_text(self.text, (0, 0, 0) if not self.texting else (200, 200, 200))
+            sub_render_text((self.x, self.y, self.w, self.h), self.out_text, (0, 0, 0) if not self.texting else (200, 200, 200))
         elif len(self.out_text):
-            sub_render_text(self.out_text, (200, 200, 200))
+            sub_render_text((self.x, self.y, self.w, self.h), self.out_text, (200, 200, 200))
         else:
-            pygame.draw.rect(self.screen, (255, 255, 255) if not self.texting else (0, 0, 0), (self.x + self.w // 2, self.y, self.w, self.h))
+            draw_rect((self.x + self.w // 2, self.y, self.w, self.h), (255, 255, 255) if not self.texting else (0, 0, 0))
+            # pygame.draw.rect(self.screen, (255, 255, 255) if not self.texting else (0, 0, 0), (self.x + self.w // 2, self.y, self.w, self.h))
 
     def content(self):
         return self.text

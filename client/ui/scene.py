@@ -1,4 +1,5 @@
 from client.ui.component import *
+from client.ui.opengl import *
 from shared.globals import TICK_SPEED
 
 
@@ -7,7 +8,7 @@ class SceneController:
 
     def __init__(self, screen):
         self.screen = screen
-        self.black_screen_surface = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
+        # self.black_screen_surface = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
 
         self.current_scene = self.previous_scene = self.next_scene = None
 
@@ -33,10 +34,11 @@ class SceneController:
                 self.next_scene_timeout = self.DEFAULT_TIMEOUT
 
         if self.next_scene_timeout >= -self.DEFAULT_TIMEOUT:
-            pygame.draw.rect(self.black_screen_surface,
-                             (0, 0, 0, 255 - int(abs(self.next_scene_timeout / self.DEFAULT_TIMEOUT) * 255)),
-                             (0, 0, self.screen.get_width(), self.screen.get_height()))
-            self.screen.blit(self.black_screen_surface, (0, 0, self.screen.get_width(), self.screen.get_height()))
+            draw_rect((0, 0, self.screen.get_width(), self.screen.get_height()), (0, 0, 0, 255 - int(abs(self.next_scene_timeout / self.DEFAULT_TIMEOUT) * 255)))
+            # pygame.draw.rect(self.black_screen_surface,
+            #                  (0, 0, 0, 255 - int(abs(self.next_scene_timeout / self.DEFAULT_TIMEOUT) * 255)),
+            #                  (0, 0, self.screen.get_width(), self.screen.get_height()))
+            # self.screen.blit(self.black_screen_surface, (0, 0, self.screen.get_width(), self.screen.get_height()))
             self.next_scene_timeout -= 1
 
 
