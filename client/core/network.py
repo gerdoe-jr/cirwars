@@ -8,7 +8,7 @@ from shared.event_handler import ClientEvents, EventReceiver, event_handler_inst
 class NetworkClient(BaseNetwork):
     def __init__(self, server_address: str = '127.0.0.1', server_port: int = NET_SERVER_PORT):
         super().__init__((server_address, server_port), NET_BUF_SIZE)
-        self.socket.setblocking(False)
+        self.udp.setblocking(False)
 
         self.should_send = False
 
@@ -40,7 +40,6 @@ class NetworkClient(BaseNetwork):
                 packet.nick = nick
 
                 self.scheduled_packets.push(packet)
-                print(f'pushed {packet.format()}')
 
                 self.start()
 
@@ -50,28 +49,36 @@ class NetworkClient(BaseNetwork):
         if len(self.scheduled_packets):
             self.should_send = True
 
-    def main_thread(self):
-        connected = False
-
-        while not connected:
-            if self.should_send:
-                self.try_send(self.scheduled_packets.serialize())
-                self.should_send = False
-
-            packet = self.try_recv()
-            if packet:
-                self.received_packets.deserialize(packet)
-                with self.received_packets.lock:
-                    for p in self.received_packets.packets:
-                        if isinstance(p, ServerInfo):
-                            self.map_name = p.map_name.decode('utf-8').rstrip('\x00')
-                            self.client_id = p.client_id
-                            connected = True
-                            break
+    def tcp_loop(self):
+        try:
+            self.tcp.connect(self.net_info)
+            self.tcp.setblocking(False)
+        except Exception as e:
+            print(f'(tcp) ({e.__class__.__name__})', e)
 
         event_handler_instance.send(EventReceiver.INTERACTION, ClientEvents.Interaction.NET_CONNECTED)
         print('connected')
 
+        while self.running:
+            try:
+                packet = self.tcp.recv(self.buffer_size)
+                if packet:
+                    self.received_packets.deserialize(packet)
+                else:
+                    break
+            except BlockingIOError:
+                continue
+            except Exception as e:
+                print(f'(tcp) ({e.__class__.__name__})', e)
+                break
+
+        self.tcp.close()
+        self.stop()
+
+        event_handler_instance.send(EventReceiver.INTERACTION, ClientEvents.Interaction.NET_DISCONNECTED)
+        print('disconnected')
+
+    def udp_loop(self):
         while self.running:
             if self.should_send:
                 self.try_send(self.scheduled_packets.serialize())
@@ -80,9 +87,6 @@ class NetworkClient(BaseNetwork):
             packet = self.try_recv()
             if packet:
                 self.received_packets.deserialize(packet)
-                # print(list(map(lambda x: x.__dict__, self.received_packets.packets)))
+                print(self.received_packets.packets)
 
-        print('disconnected')
-        self.socket.close()
-
-        event_handler_instance.send(EventReceiver.INTERACTION, ClientEvents.Interaction.NET_DISCONNECTED)
+        self.udp.close()

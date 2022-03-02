@@ -51,6 +51,35 @@ class GameClient:
         self.context.world = ClientWorld(self.context)
         self.context.collision = Collision(self.context, game_map)
 
+    def on_packets(self, packets):
+        for p in packets:
+            if isinstance(p, ServerInfo):
+                print(p.__dict__)
+            elif isinstance(p, PlayerSpawnInfo):
+                char = self.context.world.get_character(p.client_id)
+                if not char:
+                    char = ClientCharacter(self.context.world, p.client_id)
+
+                char.alive = True
+
+            elif isinstance(p, PlayerEntityInfo):
+                char = self.context.world.get_character(p.client_id)
+                if not char:
+                    ClientCharacter(self.context.world, p.client_id)
+                else:
+                    char.pos = Vector(p.x, p.y)
+
+            elif isinstance(p, PlayerDeathInfo):
+                char = self.context.world.get_character(p.client_id)
+                if not char:
+                    char = ClientCharacter(self.context.world, p.client_id)
+
+                char.alive = False
+
+            elif isinstance(p, ServerInfo):
+                self.network.map_name = p.map_name.decode('utf-8').rstrip('\x00')
+                self.client_id = p.client_id
+
     def on_tick(self):
         event = event_handler_instance.recv(EventReceiver.GAME)
 
@@ -63,31 +92,7 @@ class GameClient:
                 self.started = False
 
         if self.started:
-            packets = self.network.received_packets.flush()
-
-            for p in packets:
-                if isinstance(p, ServerInfo):
-                    print(p.__dict__)
-                elif isinstance(p, PlayerSpawnInfo):
-                    char = self.context.world.get_character(p.client_id)
-                    if not char:
-                        char = ClientCharacter(self.context.world, p.client_id)
-
-                    char.alive = True
-
-                elif isinstance(p, PlayerEntityInfo):
-                    char = self.context.world.get_character(p.client_id)
-                    if not char:
-                        ClientCharacter(self.context.world, p.client_id)
-                    else:
-                        char.pos = Vector(p.x, p.y)
-
-                elif isinstance(p, PlayerDeathInfo):
-                    char = self.context.world.get_character(p.client_id)
-                    if not char:
-                        char = ClientCharacter(self.context.world, p.client_id)
-
-                    char.alive = False
+            self.on_packets(self.network.received_packets.flush())
 
             player = self.context.world.get_character(self.client_id)
 
@@ -99,14 +104,13 @@ class GameClient:
 
     def render(self):
         if self.started:
-            self.interaction.screen.fill((0, 0, 0))
             for pos, tile in self.context.collision.tiles.items():
                 c = 255 // (tile + 1)
                 color = (c, c, c)
                 tile_size = self.context.collision.TILE_SIZE
                 pos = (pos[0] * tile_size, pos[1] * tile_size)
 
-                draw_rect((pos[0], pos[1], tile_size, tile_size), color)
+                draw_rect((*pos, tile_size, tile_size), color)
                 # pygame.draw.rect(self.interaction.screen, color, (pos[0], pos[1], tile_size, tile_size))
 
             for e in self.context.world.entities:

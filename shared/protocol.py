@@ -64,9 +64,9 @@ class BasePacket:
 
 
 class SocketPacketList:
-    def __init__(self):
+    def __init__(self, packets=[]):
         self.lock = Lock()
-        self.packets = []
+        self.packets = packets
 
     def __len__(self):
         with self.lock:

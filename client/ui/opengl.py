@@ -1,17 +1,16 @@
 from OpenGL.GL import *
 
 import pygame
-from pygame import image, font
 
 import math
 
 
-FONT = None
+FONT = pygame.font.Font('./data/fonts/font.ttf', 72)
 WIDTH = HEIGHT = None
 
 
 def init_opengl(w, h):
-    global FONT, WIDTH, HEIGHT
+    global WIDTH, HEIGHT
     WIDTH, HEIGHT = w, h
 
     glViewport(0, 0, w, h)
@@ -22,30 +21,20 @@ def init_opengl(w, h):
     glDisable(GL_TEXTURE_2D)
     # glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST)
 
-    FONT = font.Font('./data/fonts/font.ttf', 72)
-
 
 def convert_x(x):
-    global WIDTH
-
     return x / WIDTH * 2 - 1
 
 
 def convert_y(y):
-    global HEIGHT
-
     return -(y / HEIGHT * 2 - 1)
 
 
 def convert_w(w):
-    global WIDTH
-
     return w / WIDTH * 2
 
 
 def convert_h(h):
-    global HEIGHT
-
     return -h / HEIGHT * 2
 
 
@@ -56,41 +45,37 @@ def convert_pos(pos):
 
 
 def draw_surface(pos, surface):
-    x, y = pos
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
-    glWindowPos2d(x, y)
-    glDrawPixels(surface.get_width(), surface.get_height(), GL_RGBA, GL_UNSIGNED_BYTE, image.tostring(surface, 'RGBA', True))
+    glWindowPos2d(pos[0], HEIGHT - pos[1] - surface.get_height())
+    glDrawPixels(surface.get_width(), surface.get_height(), GL_RGBA, GL_UNSIGNED_BYTE, pygame.image.tostring(surface, 'RGBA', True))
 
 
 def draw_text(pos, color, text, size=None):
-    pos = convert_pos(pos)
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
     if len(color) == 3:
         color = *color, 255
-    surface = (FONT.render(text, True, color) if not size else font.Font('./data/fonts/font.ttf', size).render(text, True, color)).convert_alpha()
+    surface = (FONT.render(text, True, color) if not size else pygame.font.Font('./data/fonts/font.ttf', size).render(text, True, color)).convert_alpha()
 
     draw_surface(pos, surface)
 
 
-def sub_render_text(box, text, color, size=None):
-    pos = box[0], box[1]
-    box = *convert_pos((box[0], box[1])), convert_w(box[2]), convert_h(box[3])
+def draw_clipped_text(box, text, color, size=None):
+    bx, by, bw, bh = box
 
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
     if len(color) == 3:
         color = *color, 255
 
-    fsurface = (FONT.render(text, True, color) if not size else font.Font('./data/fonts/font.ttf', size).render(text, True, color)).convert_alpha()
+    fsurface = (FONT.render(text, True, color) if not size else pygame.font.Font('./data/fonts/font.ttf', size).render(text, True, color)).convert_alpha()
     w, h = fsurface.get_size()
 
-    real_w = w - 20 if w - 20 >= box[2] else box[3]
-    real_x = -10 if w - 20 >= box[2] else (box[2] - w) // 2
+    real_w = w - 20 if w - 20 >= bw else bw
+    real_x = -10 if w - 20 >= bw else (bw - w) // 2
 
-    font_surf = pygame.Surface((real_w, box[3]))
+    font_surf = pygame.Surface((real_w, bh))
     font_surf.fill((255, 255, 255))
     font_surf.blit(fsurface, (real_x, -h * 0.1))
 
-    draw_surface((box[0] - real_w // 2, box[1]), font_surf)
+    draw_surface((bx - real_w // 2, by), font_surf)
 
 
 def draw_rect(rect, color):
@@ -102,7 +87,7 @@ def draw_rect(rect, color):
 
     if len(color) == 3:
         color = *color, 255
-    glColor4f(*color)
+    glColor4ub(*color)
     glRectf(x, y, x + w, y + h)
 
     # glPushMatrix()
@@ -142,7 +127,7 @@ def draw_circle(pos, r, color, num_segments=32):
         color = *color, 255
 
     for i in range(num_segments):
-        glColor4f(*color)
+        glColor4ub(*color)
         glVertex2f(x + cx, y + cy)
 
         t = x

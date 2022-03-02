@@ -4,9 +4,9 @@ from shared.globals import *
 
 
 class ServerClient(BaseNetwork):
-    def __init__(self, net_server, net_info: (str, int)):
+    def __init__(self, net_server, net_info: (str, int), tcp_connection):
         super().__init__(net_info, NET_BUF_SIZE)
-        self.socket.settimeout(1.0)
+        self.tcp = tcp_connection
 
         self.server = net_server
 
@@ -19,13 +19,23 @@ class ServerClient(BaseNetwork):
         else:
             self.scheduled_packets.extend(packets)
 
-    def main_thread(self):
-        print('started client')
+    def tcp_loop(self):
+        try:
+            while self.running:
+                if not self.tcp.recv(1):
+                    break
+        except Exception as e:
+            print(f'(tcp) ({e.__class__.__name__})', e)
+        finally:
+            self.server.on_client_disconnect(self)
+            self.tcp.close()
+            self.stop()
+
+    def udp_loop(self):
         while self.running:
             if len(self.scheduled_packets.packets):
                 self.try_send(self.scheduled_packets.serialize(), self.net_info)
-        self.socket.close()
-        print('stopped client')
+        self.udp.close()
 
 
 class NetworkServer(BaseNetwork):
@@ -37,9 +47,9 @@ class NetworkServer(BaseNetwork):
         self.clients = {}
         self.ip_id_dict = {}
 
-    def on_client_connect(self, address):
+    def on_client_connect(self, connection, address):
         if address in self.ip_id_dict.keys():
-            print(f'{address} had already connected')
+            print(f'{address} have already connected')
             return
 
         available_ids = set(range(NET_MAX_CLIENTS)) - set(self.clients.keys())
@@ -51,10 +61,11 @@ class NetworkServer(BaseNetwork):
 
         print(f"{address} connected")
 
-        self.clients[i] = ServerClient(self, address)
+        self.clients[i] = ServerClient(self, address, connection)
         self.clients[i].start()
 
         self.clients[i].send_packets(ServerInfo(self.map_name, len(self.clients), i))
+        self.clients[i].tcp.send(SocketPacketList([ServerInfo(self.map_name, len(self.clients), i)]).serialize())
 
         self.ip_id_dict[address] = i
 
@@ -75,24 +86,38 @@ class NetworkServer(BaseNetwork):
         address = client.net_info
         self.clients.pop(self.ip_id_dict[address]).stop()
 
-        print(f"{client.net_info} disconnected")
+        print(f"{address} disconnected")
 
         self.context.world.on_player_disconnect(self.ip_id_dict.pop(address))
 
-    def main_thread(self):
+    def tcp_loop(self):
         try:
-            self.socket.bind(self.net_info)
+            self.tcp.bind(self.net_info)
+            self.tcp.listen(NET_MAX_CLIENTS)
         except Exception as e:
-            print('[NET]', e.__class__.__name__, e)
+            print(f'(tcp) ({e.__class__.__name__})', e)
+
+        while self.running:
+            try:
+                connection, address = self.tcp.accept()
+                self.on_client_connect(connection, address)
+            except Exception as e:
+                print(f'(tcp) ({e.__class__.__name__})', e)
+
+        self.tcp.close()
+        self.stop()
+
+    def udp_loop(self):
+        try:
+            self.udp.bind(self.net_info)
+        except Exception as e:
+            print(f'(udp) ({e.__class__.__name__})', e)
 
         while self.running:
             packet, address = self.try_recvfrom()
             if packet is None:
                 continue
             elif address in self.ip_id_dict.keys():
-                if packet == b'':
-                    self.on_client_disconnect(self.clients[self.ip_id_dict[address]])
-                else:
-                    self.on_client_receive(address, packet)
-            else:
-                self.on_client_connect(address)
+                self.on_client_receive(address, packet)
+
+        self.udp.close()

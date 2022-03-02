@@ -40,8 +40,12 @@ class ServerWorld(GameWorld):
     def on_character_spawn(self, character):
         self.planned_packets += [PlayerSpawnInfo(character.client_id)]
 
+        print(f'player {character.client_id} spawned')
+
     def on_character_death(self, character):
         self.planned_packets += [PlayerDeathInfo(character.client_id)]
+
+        print(f'player {character.client_id} died')
 
     def to_net(self):
         result = self.planned_packets[:] + list(filter(lambda x: x, map(lambda x: x.to_net(), self.entities)))

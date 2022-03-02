@@ -6,7 +6,6 @@ class LoadingScene(Scene):
     def render(self):
         w, h = self.screen.get_size()
         draw_text((w - 140, h - 40), (255, 255, 255), '(c) gerdoe', 24)
-        # self.screen.blit(pygame.font.Font('./data/fonts/font.ttf', 24).render('(c) gerdoe', True, (255, 255, 255)), (w - 140, h - 40))
 
 
 class MainMenu(Scene):
@@ -58,7 +57,6 @@ class MainMenu(Scene):
                     c_x = int((r + (x if j % 2 else w - x)) / (w + 2 * r) * 150)
 
                 draw_circle((x, y), r, (c_x, c_x, c_x))
-                # pygame.draw.circle(self.screen, (c_x, c_x, c_x), (x, y), r)
 
 
 class ConnectMenu(Scene):
@@ -128,4 +126,4 @@ class GameScene(Scene):
                 self.scene_controller.next_scene = self.scene_controller.previous_scene
 
     def render(self):
-        p = 0
+        pass

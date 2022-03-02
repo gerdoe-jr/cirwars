@@ -26,8 +26,8 @@ class Client:
                     self.game.on_event(event)
 
             self.network.on_tick()
-            self.interaction.on_tick()
             self.game.on_tick()
+            self.interaction.on_tick(self.game.render)
 
             clock.tick(TICK_SPEED * 2)
 

@@ -18,8 +18,10 @@ class InteractionClient:
         self.scene_controller.current_scene = LoadingScene(self.scene_controller)
         self.scene_controller.next_scene = MainMenu(self.scene_controller)
 
-    def on_tick(self):
+    def on_tick(self, *additional_render):
         glClear(GL_COLOR_BUFFER_BIT)
+        for r in additional_render:
+            r()
         self.scene_controller.render()
         glFlush()
         pygame.display.flip()

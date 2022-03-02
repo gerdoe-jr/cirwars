@@ -16,17 +16,15 @@ class Label(Component):
         self.h = h
 
         self.text = text
-        self.font = pygame.font.Font('./data/fonts/font.ttf', 72)
 
         self.on_init()
 
     def render(self):
-        font = self.font.render(self.text, True, (0, 0, 0))
-        w, h = font.get_size()
-        draw_rect((self.x + (self.w - w) // 2, self.y + h // 5, w, self.h - h // 5), (255, 255, 255))
-        # pygame.draw.rect(self.screen, (255, 255, 255), (self.x + (self.w - w) // 2, self.y + h // 5, w, self.h - h // 5))
-        draw_text((self.x + (self.w - w) // 2, self.y + self.h - h // 1.5), (255, 0, 0), self.text)
-        # self.screen.blit(font, (self.x + (self.w - w) // 2, self.y + self.h - h // 1.5))
+        w, h = FONT.render(self.text, True, (0, 0, 0)).get_size()
+
+        # draw_rect((self.x + (self.w - w) // 2, self.y + h // 5, w, self.h - h // 5), (255, 255, 255))
+        draw_clipped_text((self.x + self.w // 2, self.y, self.w, self.h), self.text, (0, 0, 0))
+        # draw_text((self.x + (self.w - w) // 2, self.y + self.h - h // 1.5), (0, 0, 0), self.text)
 
 
 class WritableLabel(Label):
@@ -86,9 +84,9 @@ class WritableLabel(Label):
         #     self.screen.blit(font_surf, (self.x - real_w // 2, self.y))
 
         if len(self.text):
-            sub_render_text((self.x, self.y, self.w, self.h), self.out_text, (0, 0, 0) if not self.texting else (200, 200, 200))
+            draw_clipped_text((self.x, self.y, self.w, self.h), self.text, (0, 0, 0) if not self.texting else (200, 200, 200))
         elif len(self.out_text):
-            sub_render_text((self.x, self.y, self.w, self.h), self.out_text, (200, 200, 200))
+            draw_clipped_text((self.x, self.y, self.w, self.h), self.out_text, (200, 200, 200))
         else:
             draw_rect((self.x + self.w // 2, self.y, self.w, self.h), (255, 255, 255) if not self.texting else (0, 0, 0))
             # pygame.draw.rect(self.screen, (255, 255, 255) if not self.texting else (0, 0, 0), (self.x + self.w // 2, self.y, self.w, self.h))
@@ -117,10 +115,10 @@ class Button(Label):
     def render(self):
         if self.hovered:
             if self.y < self.hovered_y:
-                self.y += 15 / TICK_SPEED
+                self.y += 40 / TICK_SPEED
         else:
             if self.y > self.previous_y:
-                self.y -= 15 / TICK_SPEED
+                self.y -= 40 / TICK_SPEED
 
         super().render()
 
