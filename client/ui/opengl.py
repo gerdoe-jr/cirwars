@@ -3,17 +3,15 @@ from OpenGL.GL import *
 import pygame
 
 import math
+import sys
 
 
 FONT = pygame.font.Font('./data/fonts/font.ttf', 72)
-WIDTH = HEIGHT = None
+WIDTH = HEIGHT = 800
 
 
-def init_opengl(w, h):
-    global WIDTH, HEIGHT
-    WIDTH, HEIGHT = w, h
-
-    glViewport(0, 0, w, h)
+def init_opengl():
+    glViewport(0, 0, WIDTH, HEIGHT)
     glClearColor(0.0, 0.0, 0.0, 1.0)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
@@ -48,62 +46,72 @@ def draw_surface(pos, surface):
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
     glWindowPos2d(pos[0], HEIGHT - pos[1] - surface.get_height())
-    glDrawPixels(surface.get_width(), surface.get_height(), GL_RGBA, GL_UNSIGNED_BYTE, pygame.image.tostring(surface, 'RGBA', True))
+    glDrawPixels(surface.get_width(), surface.get_height(), GL_RGBA, GL_UNSIGNED_BYTE, pygame.image.tostring(surface.convert_alpha(), 'RGBA', True))
 
 
 def draw_text(pos, color, text, size=None):
     if len(color) == 3:
         color = *color, 255
-    surface = (FONT.render(text, True, color) if not size else pygame.font.Font('./data/fonts/font.ttf', size).render(text, True, color)).convert_alpha()
+    surface = (FONT.render(text, True, color) if not size else pygame.font.Font('./data/fonts/font.ttf', size).render(text, True, color))
 
     draw_surface(pos, surface)
 
 
-def draw_clipped_text(box, text, color, size=None):
+def draw_clipped_text(box, text, text_color, size=None, opacity=255):
     bx, by, bw, bh = box
 
-    if len(color) == 3:
-        color = *color, 255
+    if len(text_color) == 3:
+        text_color = *text_color, 255
 
-    fsurface = (FONT.render(text, True, color) if not size else pygame.font.Font('./data/fonts/font.ttf', size).render(text, True, color)).convert_alpha()
+    args = text, True, text_color, (255, 255, 255, 255)
+
+    fsurface = FONT.render(*args) if not size else pygame.font.Font('./data/fonts/font.ttf', size).render(*args)
     w, h = fsurface.get_size()
 
     real_w = w - 20 if w - 20 >= bw else bw
     real_x = -10 if w - 20 >= bw else (bw - w) // 2
 
-    font_surf = pygame.Surface((real_w, bh))
+    font_surf = pygame.Surface((real_w, bh), pygame.SRCALPHA)
     font_surf.fill((255, 255, 255))
+
     font_surf.blit(fsurface, (real_x, -h * 0.1))
+
+    font_surf.set_alpha(opacity)
 
     draw_surface((bx - real_w // 2, by), font_surf)
 
 
 def draw_rect(rect, color):
     x, y, w, h = rect
-    x, y = convert_pos((x, y))
-    w, h = convert_w(w), convert_h(h)
+    x, y, w, h = *convert_pos((x, y)), convert_w(w), convert_h(h)
 
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+    def eint(i):
+        return int(i).to_bytes(8, sys.byteorder)
+
+    # glPushMatrix()
+    #
+    # glColor4ub(*color)
+    # glRectiv(eint(x), eint(y), eint(x + w), eint(y + h))
+    #
+    # glPopMatrix()
+
+    glPushMatrix()
+    glTranslatef(x, y, 0.0)
 
     if len(color) == 3:
         color = *color, 255
-    glColor4ub(*color)
-    glRectf(x, y, x + w, y + h)
+    else:
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
-    # glPushMatrix()
-    # glTranslatef(x, y, 0.0)
-    #
-    # glBegin(GL_QUADS)
-    # if len(color) == 3:
-    #     color = *color, 255
-    # glColor4f(*color)
-    # glVertex2f(0, 0)
-    # glVertex2f(0, h)
-    # glVertex2f(w, h)
-    # glVertex2f(w, 0)
-    # glEnd()
-    #
-    # glPopMatrix()
+    glBegin(GL_QUADS)
+    glColor4ub(*color)
+    glVertex2f(0, 0)
+    glVertex2f(0, h)
+    glVertex2f(w, h)
+    glVertex2f(w, 0)
+    glEnd()
+
+    glPopMatrix()
 
 
 def draw_circle(pos, r, color, num_segments=32):

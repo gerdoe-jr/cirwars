@@ -34,7 +34,7 @@ class SceneController:
                 self.next_scene_timeout = self.DEFAULT_TIMEOUT
 
         if self.next_scene_timeout >= -self.DEFAULT_TIMEOUT:
-            draw_rect((0, 0, self.screen.get_width(), self.screen.get_height()), (0, 0, 0, 255 - int(abs(self.next_scene_timeout / self.DEFAULT_TIMEOUT) * 255)))
+            draw_rect((0, 0, self.screen.get_width(), self.screen.get_height()), (0, 0, 0, int(1.0 - abs(self.next_scene_timeout / self.DEFAULT_TIMEOUT) * 255)))
             # pygame.draw.rect(self.black_screen_surface,
             #                  (0, 0, 0, 255 - int(abs(self.next_scene_timeout / self.DEFAULT_TIMEOUT) * 255)),
             #                  (0, 0, self.screen.get_width(), self.screen.get_height()))
@@ -56,8 +56,6 @@ class Scene(Component):
             c.on_event(event)
 
     def render(self):
-        self.screen.fill((0, 0, 0))
-
         self.render_before_components()
         self.render_components()
         self.render_after_components()

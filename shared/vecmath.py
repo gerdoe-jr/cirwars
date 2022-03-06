@@ -28,7 +28,7 @@ class Vector:
         else:
             raise ValueError("Vector doesn't support {} multiplication".format(type(other)))
 
-    def __div__(self, other):
+    def __truediv__(self, other):
         if isinstance(other, (int, float)):
             return Vector(self.x / other, self.y / other)
         else:

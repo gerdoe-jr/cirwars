@@ -15,8 +15,8 @@ class ClientEvents:
 
     class Interaction:
         NET_CONNECTED = 0
-        NET_DISCONNECTED = 1
-        NET_RECEIVED = 2
+        NET_FAILED = 1
+        NET_DISCONNECTED = 2
 
     class Network:
         TRY_CONNECT = 0

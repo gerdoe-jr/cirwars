@@ -7,7 +7,7 @@ from shared.protocol import *
 class ServerCharacter(Character):
     def spawn(self, pos):
         self.alive = True
-        self.pos = self.next_pos = Vector(pos[0] * Collision.TILE_SIZE * 1.5, pos[1] * Collision.TILE_SIZE * 1.5)
+        self.pos = self.next_pos = Vector((pos[0] + 0.5) * Collision.TILE_SIZE, (pos[1] + 0.5) * Collision.TILE_SIZE)
 
         self.world.on_character_spawn(self)
 

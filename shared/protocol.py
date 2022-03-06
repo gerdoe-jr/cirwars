@@ -64,9 +64,9 @@ class BasePacket:
 
 
 class SocketPacketList:
-    def __init__(self, packets=[]):
+    def __init__(self, packets=None):
         self.lock = Lock()
-        self.packets = packets
+        self.packets = packets if packets else []
 
     def __len__(self):
         with self.lock:
@@ -138,6 +138,10 @@ PlayerDeathInfo = new_packet('PlayerDeathInfo',
 ClientInfo = new_packet('ClientInfo',
                         ('nick', '8s', 'noname')
                         )
+
+ClientAlive = new_packet('ClientAlive',
+                         ('alive', 'b', True)
+                         )
 
 ClientInputInfo = new_packet('ClientInputInfo',
                              ('cursor_x', 'f', 0.0),

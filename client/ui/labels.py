@@ -20,17 +20,47 @@ class Label(Component):
         self.on_init()
 
     def render(self):
-        w, h = FONT.render(self.text, True, (0, 0, 0)).get_size()
-
-        # draw_rect((self.x + (self.w - w) // 2, self.y + h // 5, w, self.h - h // 5), (255, 255, 255))
         draw_clipped_text((self.x + self.w // 2, self.y, self.w, self.h), self.text, (0, 0, 0))
-        # draw_text((self.x + (self.w - w) // 2, self.y + self.h - h // 1.5), (0, 0, 0), self.text)
+
+
+class WarningLabel(Label):
+    TIMEOUT = TICK_SPEED / 2
+
+    def __init__(self, scene, x=0, y=0, w=0, h=0, text='', ticks=TICK_SPEED * 3):
+        super().__init__(scene, x, y, w, h, text)
+
+        self.ticks = ticks
+        self.shade = 0
+        self.counter = 0
+
+    def spawn(self):
+        self.shade = -self.TIMEOUT
+
+    def on_tick(self):
+        if self.shade < 0:
+            self.shade += 1
+
+            if not self.shade:
+                self.counter = self.ticks
+        elif self.shade > 0:
+            self.shade -= 1
+
+        if self.counter:
+            self.counter -= 1
+
+            if not self.counter:
+                self.shade = self.TIMEOUT
+
+    def render(self):
+        if self.shade or self.counter:
+            draw_clipped_text((self.x + self.w // 2, self.y, self.w, self.h), self.text, (0, 0, 0), opacity=24)
 
 
 class WritableLabel(Label):
-    def __init__(self, scene, x=0, y=0, w=0, h=0, out_text='', allowed=None, max_len=0):
+    def __init__(self, scene, x=0, y=0, w=0, h=0, text='', out_text='', allowed=None, max_len=0):
         super().__init__(scene, x, y, w, h)
 
+        self.text = text
         self.out_text = out_text
 
         if not allowed:

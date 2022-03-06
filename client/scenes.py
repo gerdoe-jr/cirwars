@@ -37,8 +37,6 @@ class MainMenu(Scene):
         self.bg_offset = 0
 
     def render_before_components(self):
-        self.screen.fill((0, 0, 0))
-
         r = 20
         const = 30 + r
         w, h = self.screen.get_size()
@@ -62,14 +60,9 @@ class MainMenu(Scene):
 class ConnectMenu(Scene):
     class OkButton(Button):
         trying_to_connect = False
-        timeout = TICK_SPEED * 10
-        count = 0
-        connected = False
 
         def reset(self):
             self.trying_to_connect = False
-            self.connected = False
-            self.count = 0
 
         def action(self):
             server_address = (self.scene.components[1].content(), 0)
@@ -79,23 +72,20 @@ class ConnectMenu(Scene):
             self.trying_to_connect = True
 
         def on_tick(self):
-            if self.connected:
-                self.scene.scene_controller.next_scene = GameScene(self.scene.scene_controller)
-                self.reset()
-            elif self.trying_to_connect:
+            if self.trying_to_connect:
                 event = event_handler_instance.recv(EventReceiver.INTERACTION)
 
                 if event:
-                    print('received interaction.net_connected')
-                    self.reset()
-                    self.connected = True
-                    return
-
-                self.count += 1
-
-                if self.count >= self.timeout:
-                    self.reset()
-                    self.scene.scene_controller.next_scene = self.scene.scene_controller.previous_scene
+                    event = event[0]
+                    if event == ClientEvents.Interaction.NET_CONNECTED:
+                        print('received interaction.net_connected')
+                        self.scene.scene_controller.next_scene = GameScene(self.scene.scene_controller)
+                        self.reset()
+                        return
+                    elif event == ClientEvents.Interaction.NET_FAILED:
+                        self.scene.components[3].spawn()
+                        self.reset()
+                        return
 
     class NickLabel(WritableLabel):
         pass
@@ -108,8 +98,9 @@ class ConnectMenu(Scene):
 
         self.components = [
             self.NickLabel(self, w // 2, h // 2 - 150, 100, 50, out_text='name'),
-            self.AddressLabel(self, w // 2, h // 2 - 50, 100, 50, out_text='addr', allowed=list('0123456789.')),
-            self.OkButton(self, w // 2 - 50, h // 2 + 50, 100, 50, text='ok')
+            self.AddressLabel(self, w // 2, h // 2 - 50, 100, 50, text='127.0.0.1', out_text='addr', allowed=list('0123456789.')),
+            self.OkButton(self, w // 2 - 50, h // 2 + 50, 100, 50, text='ok'),
+            WarningLabel(self, w // 2 - 50, h // 2 + 200, 100, 50, text='failed')
         ]
 
 
@@ -126,4 +117,4 @@ class GameScene(Scene):
                 self.scene_controller.next_scene = self.scene_controller.previous_scene
 
     def render(self):
-        pass
+        p = 0

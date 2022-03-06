@@ -26,16 +26,12 @@ class ServerClient(BaseNetwork):
                     break
         except Exception as e:
             print(f'(tcp) ({e.__class__.__name__})', e)
-        finally:
-            self.server.on_client_disconnect(self)
-            self.tcp.close()
-            self.stop()
+
+        self.server.on_client_disconnect(self.net_info)
+        self.stop()
 
     def udp_loop(self):
-        while self.running:
-            if len(self.scheduled_packets.packets):
-                self.try_send(self.scheduled_packets.serialize(), self.net_info)
-        self.udp.close()
+        pass
 
 
 class NetworkServer(BaseNetwork):
@@ -44,51 +40,49 @@ class NetworkServer(BaseNetwork):
 
         self.context = None
 
+        self.lock = Lock()
         self.clients = {}
         self.ip_id_dict = {}
 
     def on_client_connect(self, connection, address):
-        if address in self.ip_id_dict.keys():
-            print(f'{address} have already connected')
-            return
+        with self.lock:
+            if address in self.ip_id_dict.keys():
+                print(f'{address} have already connected')
+                return
 
-        available_ids = set(range(NET_MAX_CLIENTS)) - set(self.clients.keys())
-        if not len(available_ids):
-            print('server is full')
-            return
+            available_ids = set(range(NET_MAX_CLIENTS)) - set(self.clients.keys())
+            if not len(available_ids):
+                print('server is full')
+                return
 
-        i = available_ids.pop()
+            i = available_ids.pop()
 
-        print(f"{address} connected")
+            print(f"{address} connected")
 
-        self.clients[i] = ServerClient(self, address, connection)
-        self.clients[i].start()
+            self.clients[i] = ServerClient(self, address, connection)
+            self.clients[i].start()
 
-        self.clients[i].send_packets(ServerInfo(self.map_name, len(self.clients), i))
-        self.clients[i].tcp.send(SocketPacketList([ServerInfo(self.map_name, len(self.clients), i)]).serialize())
+            self.clients[i].send_packets(ServerInfo(self.map_name, len(self.clients), i))
+            self.clients[i].tcp.send(SocketPacketList([ServerInfo(self.map_name, len(self.clients), i)]).serialize())
 
-        self.ip_id_dict[address] = i
+            self.ip_id_dict[address] = i
 
-        self.context.world.on_player_connect(i)
+            self.context.world.on_player_connect(i)
 
-    def on_client_receive(self, address, packet):
+    def on_client_receive(self, packet, address):
         client_id = self.ip_id_dict[address]
-        slist = self.clients[client_id].received_packets
-        slist.deserialize(packet)
-
-        for p in slist.packets:
+        self.clients[client_id].received_packets.deserialize(packet)
+        for p in self.clients[client_id].received_packets.flush():
             if isinstance(p, ClientInputInfo):
                 self.context.world.on_player_input(client_id, p)
 
-        slist.packets.clear()
+    def on_client_disconnect(self, address):
+        with self.lock:
+            self.clients.pop(self.ip_id_dict[address])
 
-    def on_client_disconnect(self, client: ServerClient):
-        address = client.net_info
-        self.clients.pop(self.ip_id_dict[address]).stop()
+            print(f"{address} disconnected")
 
-        print(f"{address} disconnected")
-
-        self.context.world.on_player_disconnect(self.ip_id_dict.pop(address))
+            self.context.world.on_player_disconnect(self.ip_id_dict.pop(address))
 
     def tcp_loop(self):
         try:
@@ -99,25 +93,29 @@ class NetworkServer(BaseNetwork):
 
         while self.running:
             try:
-                connection, address = self.tcp.accept()
-                self.on_client_connect(connection, address)
+                self.on_client_connect(*self.tcp.accept())
             except Exception as e:
                 print(f'(tcp) ({e.__class__.__name__})', e)
 
-        self.tcp.close()
         self.stop()
 
     def udp_loop(self):
         try:
             self.udp.bind(self.net_info)
+            self.udp.setblocking(False)
         except Exception as e:
             print(f'(udp) ({e.__class__.__name__})', e)
 
         while self.running:
             packet, address = self.try_recvfrom()
-            if packet is None:
-                continue
+            if packet == b'':
+                pass
             elif address in self.ip_id_dict.keys():
-                self.on_client_receive(address, packet)
+                self.on_client_receive(packet, address)
 
-        self.udp.close()
+            with self.lock:
+                for c in self.clients.values():
+                    if len(c.scheduled_packets):
+                        self.try_send(c.scheduled_packets.serialize(), c.net_info)
+
+        self.stop()

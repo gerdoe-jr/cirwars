@@ -32,6 +32,7 @@ class GameClient:
         self.context = None
 
         self.client_id = 0
+        self.pos = Vector(0, 0)
 
     def start(self):
         self.client_id = self.network.client_id
@@ -53,9 +54,7 @@ class GameClient:
 
     def on_packets(self, packets):
         for p in packets:
-            if isinstance(p, ServerInfo):
-                print(p.__dict__)
-            elif isinstance(p, PlayerSpawnInfo):
+            if isinstance(p, PlayerSpawnInfo):
                 char = self.context.world.get_character(p.client_id)
                 if not char:
                     char = ClientCharacter(self.context.world, p.client_id)
@@ -84,60 +83,87 @@ class GameClient:
         event = event_handler_instance.recv(EventReceiver.GAME)
 
         if event:
-            event, info = event
-            if event == ClientEvents.Game.START:
+            kind, info = event
+            if kind == ClientEvents.Game.START:
                 self.started = True
                 self.start()
-            elif event == ClientEvents.Game.STOP:
+            elif kind == ClientEvents.Game.STOP:
                 self.started = False
+                self.network.stop()
 
         if self.started:
-            self.on_packets(self.network.received_packets.flush())
+            if event:
+                kind, info = event
+                if kind == ClientEvents.Game.NET_RECEIVED:
+                    self.on_packets(*info)
+
+            keys = pygame.key.get_pressed()
+            if keys:
+                self.on_pressed_keys(keys)
 
             player = self.context.world.get_character(self.client_id)
 
             if player and player.input:
                 self.network.send_packet(player.to_net())
-                print('sent')
 
             self.render()
 
     def render(self):
         if self.started:
-            for pos, tile in self.context.collision.tiles.items():
-                c = 255 // (tile + 1)
-                color = (c, c, c)
-                tile_size = self.context.collision.TILE_SIZE
-                pos = (pos[0] * tile_size, pos[1] * tile_size)
+            w, h = WIDTH, HEIGHT
+            for y in range(len(self.context.collision.tiles)):
+                for x in range(len(self.context.collision.tiles[y])):
+                    if abs(x - self.pos.x // Collision.TILE_SIZE) > 7 or\
+                            abs(y - self.pos.y // Collision.TILE_SIZE) > 7 or\
+                            not self.context.collision.tiles[y][x]:
+                        continue
 
-                draw_rect((*pos, tile_size, tile_size), color)
-                # pygame.draw.rect(self.interaction.screen, color, (pos[0], pos[1], tile_size, tile_size))
+                    pos = w / 2 + x * Collision.TILE_SIZE - self.pos.x, h / 2 + y * Collision.TILE_SIZE - self.pos.y
+
+                    c = 255 // self.context.collision.tiles[y][x]
+                    color = (c, c, c)
+
+                    draw_rect((*pos, Collision.TILE_SIZE, Collision.TILE_SIZE), color)
 
             for e in self.context.world.entities:
-                color = (255, 255, 255) if e.client_id != self.client_id else (190, 255, 255)
-                draw_circle((e.pos.x - 0.5 * Character.RADIUS, e.pos.y - 0.5 * Character.RADIUS), ClientCharacter.RADIUS, color)
-                # pygame.draw.circle(self.interaction.screen, color, (e.pos.x, e.pos.y), ClientCharacter.RADIUS)
+                if not e.alive:
+                    continue
+                x, y = e.pos.x, e.pos.y
+                color = (255, 255, 255)
+
+                if e.client_id == self.client_id:
+                    self.pos = Vector(e.pos.x, e.pos.y)
+                    x, y = WIDTH / 2, HEIGHT / 2
+                    color = (190, 255, 255)
+                else:
+                    x, y = w / 2 + x - self.pos.x, h / 2 + y - self.pos.y
+
+                if abs(x - self.pos.x // Collision.TILE_SIZE) > 7 or \
+                        abs(y - self.pos.y // Collision.TILE_SIZE) > 7:
+                    draw_circle((x, y), Character.RADIUS, color)
+
+    def on_pressed_keys(self, keys):
+        char = self.context.world.get_character(self.client_id)
+        if char:
+            i_keys = 0
+            if keys[pygame.K_RIGHT]:
+                i_keys |= ClientCharacter.Input.RIGHT
+            if keys[pygame.K_LEFT]:
+                i_keys |= ClientCharacter.Input.LEFT
+            if keys[pygame.K_UP]:
+                i_keys |= ClientCharacter.Input.JUMP
+            if keys[pygame.K_DOWN]:
+                i_keys |= ClientCharacter.Input.SPEEDUP
+
+            if not i_keys:
+                return
+
+            if char.input:
+                char.input.keys |= i_keys
+            else:
+                char.input = ClientCharacter.Input(char.pos.x, char.pos.y, i_keys)
 
     def on_event(self, event):
         if self.started:
-            char = self.context.world.get_character(self.client_id)
-            if char:
-                if event.type == pygame.KEYDOWN:
-                    keys = 0
-                    if event.key == pygame.K_RIGHT:
-                        keys |= ClientCharacter.Input.RIGHT
-                    if event.key == pygame.K_LEFT:
-                        keys |= ClientCharacter.Input.LEFT
-                    if event.key == pygame.K_UP:
-                        keys |= ClientCharacter.Input.JUMP
-                    if event.key == pygame.K_DOWN:
-                        keys |= ClientCharacter.Input.SPEEDUP
+            pass
 
-                    print('{0:b}'.format(keys))
-
-                    if char.input:
-                        char.input.keys |= keys
-
-                        print('char', '{0:b}'.format(char.input.keys))
-                    else:
-                        char.input = ClientCharacter.Input(char.pos.x, char.pos.y, keys)
